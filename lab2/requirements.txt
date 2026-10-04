@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+httpx
+prometheus_client
+python-json-logger
+opentelemetry-sdk
+opentelemetry-exporter-otlp-proto-http
+opentelemetry-instrumentation-fastapi

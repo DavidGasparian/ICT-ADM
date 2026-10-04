@@ -1,0 +1,39 @@
+groups:
+  - name: lab2-red-alerts
+    rules:
+      # Ошибки (E в RED): доля 5xx от всех запросов выше 5%
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[1m]))
+            / sum(rate(http_requests_total[1m])) > 0.05
+        for: 10s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Доля 5xx-ошибок выше 5%"
+          description: "Доля ошибок за последнюю минуту: {{ $value | humanizePercentage }}. Проверь логи и трейсы с ошибками."
+
+      # Интенсивность (R в RED): всплеск RPS, без учёта запросов Prometheus к /metrics.
+      # Фон сервиса без нагрузки ~0, поэтому порог 0.5 req/s (15 запросов за 30 секунд)
+      - alert: TrafficSpike
+        expr: |
+          sum(rate(http_requests_total{path!="/metrics"}[30s])) > 0.5
+        for: 0s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Всплеск запросов: больше 0.5 RPS"
+          description: "Текущая интенсивность: {{ $value | printf \"%.2f\" }} req/s за последние 30 секунд."
+
+      # Длительность (D в RED): p95 времени ответа выше 1 секунды
+      - alert: HighP95Latency
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(http_request_duration_seconds_bucket{path!="/metrics"}[1m]))
+          ) > 1
+        for: 10s
+        labels:
+          severity: warning
+        annotations:
+          summary: "p95 времени ответа выше 1 секунды"
+          description: "p95 за последнюю минуту: {{ $value | printf \"%.2f\" }} с."

@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Виртуальное окружение
+venv/
+.venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker volumes (позиции Promtail)
+positions.yaml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Логи (на всякий случай)
+*.log

@@ -1,0 +1,212 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OrderFlow — Сборщик</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f5f7fb;
+    color: #1e293b;
+}
+
+header {
+    background: white;
+    padding: 24px 8%;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.logo {
+    color: #4f46e5;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+main {
+    max-width: 1100px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+
+.subtitle { color: #64748b; }
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin: 28px 0;
+}
+
+.card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 5px 25px #1e293b0a;
+}
+
+.value {
+    font-size: 28px;
+    font-weight: bold;
+    margin-top: 12px;
+    color: #4f46e5;
+}
+
+.label {
+    color: #64748b;
+    font-size: 14px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 14px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+th {
+    color: #64748b;
+    font-size: 13px;
+}
+
+td { font-size: 14px; }
+
+.badge {
+    color: #15803d;
+    background: #dcfce7;
+    padding: 6px 12px;
+    border-radius: 20px;
+}
+
+.table-wrap { overflow-x: auto; }
+
+@media (max-width: 650px) {
+    .stats { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <div class="logo">📦 OrderFlow | Склад</div>
+</header>
+
+<main>
+    <h1>Панель сборщика</h1>
+    <p class="subtitle">
+        Заказы поступают автоматически через Apache Kafka.
+    </p>
+
+    <div class="stats">
+        <div class="card">
+            <div class="label">Сборщик</div>
+            <div class="value" id="instance">—</div>
+        </div>
+
+        <div class="card">
+            <div class="label">Обработано заказов</div>
+            <div class="value" id="count">0</div>
+        </div>
+
+        <div class="card">
+            <div class="label">Consumer Group</div>
+            <div class="value" id="group" style="font-size:19px">—</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>История обработки</h2>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID заказа</th>
+                        <th>Товары</th>
+                        <th>Partition</th>
+                        <th>Offset</th>
+                        <th>Сборщик</th>
+                        <th>Статус</th>
+                    </tr>
+                </thead>
+                <tbody id="orders"></tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<script>
+async function updateOrders() {
+    try {
+        const response = await fetch("/api/orders");
+        if (!response.ok) return;
+
+        const orders = await response.json();
+        const tbody = document.getElementById("orders");
+
+        tbody.replaceChildren();
+
+        orders.forEach(order => {
+            const row = document.createElement("tr");
+
+            [
+                order.order_id,
+                order.items.join(", "),
+                order.partition,
+                order.offset,
+                order.instance
+            ].forEach(value => {
+                const cell = document.createElement("td");
+                cell.textContent = String(value);
+                row.appendChild(cell);
+            });
+
+            const status = document.createElement("td");
+            const badge = document.createElement("span");
+
+            badge.className = "badge";
+            badge.textContent = order.status;
+
+            status.appendChild(badge);
+            row.appendChild(status);
+            tbody.appendChild(row);
+        });
+
+        document.getElementById("count").textContent =
+            orders.length;
+
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+async function loadInfo() {
+    const response = await fetch("/api/info");
+    const info = await response.json();
+
+    document.getElementById("instance").textContent =
+        info.instance;
+
+    document.getElementById("group").textContent =
+        info.group;
+}
+
+loadInfo();
+updateOrders();
+
+// Каждые две секунды обновляем таблицу
+setInterval(updateOrders, 2000);
+</script>
+
+</body>
+</html>

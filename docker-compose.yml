@@ -51,7 +51,7 @@ services:
     environment:
       KAFKA_BOOTSTRAP_SERVERS: "kafka:19092"
       TOPIC_NAME: "orders"
-      TOPIC_PARTITIONS: "2"
+      TOPIC_PARTITIONS: "4"
       TOPIC_RETENTION_MS: "604800000"
     depends_on:
       - kafka
@@ -82,6 +82,31 @@ services:
     depends_on:
       topic-init:
         condition: service_completed_successfully
+    restart: unless-stopped
+
+  picker-service-2:
+    build: ./picker-service
+    ports:
+      - "127.0.0.1:8002:8001"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:19092"
+      KAFKA_TOPIC: "orders"
+      KAFKA_GROUP: "picker-group"
+      INSTANCE_NAME: "picker-2"
+    depends_on:
+      topic-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.2
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: "local-kafka"
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka:19092"
+    depends_on:
+      - kafka
     restart: unless-stopped
 
 volumes:

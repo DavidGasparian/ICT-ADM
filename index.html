@@ -1,0 +1,261 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OrderFlow — Заказы</title>
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f5f7fb;
+    color: #1e293b;
+  }
+
+  header {
+    background: #fff;
+    padding: 22px 8%;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .logo {
+    font-size: 24px;
+    font-weight: bold;
+    color: #4f46e5;
+  }
+
+  main {
+    max-width: 1050px;
+    margin: 40px auto;
+    padding: 0 20px;
+  }
+
+  h1 { margin-bottom: 8px; }
+
+  .subtitle {
+    color: #64748b;
+    margin-bottom: 30px;
+  }
+
+  .card {
+    background: white;
+    padding: 28px;
+    border-radius: 18px;
+    margin-bottom: 22px;
+    box-shadow: 0 5px 25px #1e293b0a;
+  }
+
+  .products {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin: 22px 0;
+  }
+
+  .product {
+    padding: 18px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    cursor: pointer;
+  }
+
+  .product:has(input:checked) {
+    border-color: #6366f1;
+    background: #eef2ff;
+  }
+
+  .product input { margin-right: 8px; }
+
+  button {
+    background: #4f46e5;
+    color: white;
+    padding: 14px 24px;
+    border: 0;
+    border-radius: 10px;
+    font-size: 15px;
+    cursor: pointer;
+  }
+
+  button:disabled {
+    opacity: .55;
+    cursor: wait;
+  }
+
+  .status {
+    margin-top: 18px;
+    white-space: pre-line;
+    color: #475569;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 16px;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 12px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 14px;
+  }
+
+  th { color: #64748b; }
+
+  .table-wrap { overflow-x: auto; }
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo">📦 OrderFlow</div>
+</header>
+
+<main>
+  <h1>Создание заказов</h1>
+  <p class="subtitle">
+    Сервис пользователя · Apache Kafka
+  </p>
+
+  <section class="card">
+    <h2>Выберите товары</h2>
+
+    <form id="orderForm">
+      <div class="products">
+        <label class="product">
+          <input type="checkbox" name="item" value="Молоко">
+          🥛 Молоко
+        </label>
+
+        <label class="product">
+          <input type="checkbox" name="item" value="Хлеб">
+          🍞 Хлеб
+        </label>
+
+        <label class="product">
+          <input type="checkbox" name="item" value="Яйца">
+          🥚 Яйца
+        </label>
+
+        <label class="product">
+          <input type="checkbox" name="item" value="Яблоки">
+          🍎 Яблоки
+        </label>
+      </div>
+
+      <button id="sendButton" type="submit">
+        Создать заказ
+      </button>
+    </form>
+
+    <div class="status" id="status">
+      Выберите товары и создайте заказ.
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>История отправленных заказов</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Заказ</th>
+            <th>Товары</th>
+            <th>Partition</th>
+            <th>Offset</th>
+          </tr>
+        </thead>
+        <tbody id="history"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+const form = document.getElementById("orderForm");
+const statusBox = document.getElementById("status");
+const button = document.getElementById("sendButton");
+
+async function loadHistory() {
+  const response = await fetch("/api/orders");
+  if (!response.ok) return;
+
+  const orders = await response.json();
+  const tbody = document.getElementById("history");
+  tbody.replaceChildren();
+
+  orders.forEach(order => {
+    const row = document.createElement("tr");
+
+    const values = [
+      order.order_id,
+      order.items.join(", "),
+      order.partition,
+      order.offset
+    ];
+
+    values.forEach(value => {
+      const cell = document.createElement("td");
+      cell.textContent = String(value);
+      row.appendChild(cell);
+    });
+
+    tbody.appendChild(row);
+  });
+}
+
+form.addEventListener("submit", async event => {
+  event.preventDefault();
+
+  const items = Array.from(
+    document.querySelectorAll('input[name="item"]:checked')
+  ).map(input => input.value);
+
+  if (items.length === 0) {
+    statusBox.textContent = "Сначала выберите товары!";
+    return;
+  }
+
+  button.disabled = true;
+  statusBox.textContent = "Отправляем заказ в Kafka...";
+
+  try {
+    const response = await fetch("/api/orders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ items })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || "Ошибка сервера");
+    }
+
+    statusBox.textContent =
+      `✅ Заказ ${data.order_id} отправлен!\n` +
+      `Partition: ${data.partition}\n` +
+      `Offset: ${data.offset}`;
+
+    await loadHistory();
+
+  } catch (error) {
+    statusBox.textContent = "❌ " + error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+loadHistory();
+</script>
+
+</body>
+</html>
+

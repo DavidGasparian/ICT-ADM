@@ -6,3 +6,9 @@
 - [Лабораторная работа №3](https://github.com/DavidGasparian/ICT-ADM/tree/lab3)
 - [Лабораторная работа №4](https://github.com/DavidGasparian/ICT-ADM/tree/lab4)
 - [Лабораторная работа №5](https://github.com/DavidGasparian/ICT-ADM/tree/lab5)
+
+## Наша команда
+
+![Наша команда — Бэтмен, Человек-паук и Железный человек](assets/team.png)
+
+*Да, это мы.*

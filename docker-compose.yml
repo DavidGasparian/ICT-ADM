@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  postgres-primary:
+    image: postgres:17
+    container_name: postgres-primary
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: lab4
+    ports:
+      - "5432:5432"
+    volumes:
+      - primary_data:/var/lib/postgresql/data
+      - ./primary/init-primary.sh:/docker-entrypoint-initdb.d/init-primary.sh
+    command: >
+      postgres
+      -c wal_level=replica
+      -c max_wal_senders=10
+      -c hot_standby=on
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lab4"]
+      interval: 5s
+
+  postgres-replica:
+    image: postgres:17
+    container_name: postgres-replica
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: lab4
+    ports:
+      - "5433:5432"
+    volumes:
+      - replica_data:/var/lib/postgresql/data
+      - ./replica/init-replica.sh:/init-replica.sh
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "/init-replica.sh"] 
+    command: >
+      postgres
+      -c hot_standby=on
+
+  app:
+    build: ./app
+    container_name: lab4-app
+    ports:
+      - "8000:8000"
+    environment:
+      WRITE_DATABASE_URL: "postgresql://postgres:postgres@postgres-replica:5432/lab4"
+      READ_DATABASE_URL: "postgresql://postgres:postgres@postgres-replica:5432/lab4"
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+
+volumes:
+  primary_data:
+  replica_data:

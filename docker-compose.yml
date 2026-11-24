@@ -109,5 +109,45 @@ services:
       - kafka
     restart: unless-stopped
 
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.9.0
+    command:
+      - "--kafka.server=kafka:19092"
+      - "--kafka.version=3.8.0"
+      - "--topic.filter=orders"
+      - "--group.filter=picker-group"
+    ports:
+      - "127.0.0.1:9308:9308"
+    depends_on:
+      - kafka
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    depends_on:
+      - kafka-exporter
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.3.2
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+    environment:
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+
 volumes:
   kafka-data:
+  prometheus-data:
+  grafana-data:
